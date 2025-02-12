@@ -1,7 +1,8 @@
 import os
 import datetime
 import tarfile
-from firebase_admin import credentials, initialize_app, storage
+import base64
+from github import Github
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -17,26 +18,53 @@ def create_backup(log_directory, backup_name):
         print(f"Error creating backup: {str(e)}")
         return False
 
-def upload_to_firebase(backup_file, bucket_name):
-    """Upload the backup file to Firebase Storage"""
+def upload_to_github(backup_file):
+    """Upload the backup file to GitHub repository"""
     try:
-        # Initialize Firebase with your credentials
-        cred = credentials.Certificate(os.getenv('FIREBASE_CREDENTIALS_PATH'))
-        initialize_app(cred, {'storageBucket': bucket_name})
+        # GitHub configuration
+        github_token = os.getenv('GITHUB_TOKEN')
+        repo_name = os.getenv('GITHUB_REPO')
         
-        bucket = storage.bucket()
+        if not github_token or not repo_name:
+            print("Error: GitHub configuration not set in environment variables")
+            return False
+        
+        # Initialize GitHub
+        g = Github(github_token)
+        repo = g.get_user().get_repo(repo_name)
+        
+        # Create path with current date
         current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        file_path = f'logs_backup/{current_date}/{os.path.basename(backup_file)}'
         
-        # Create a new blob with the backup file
-        blob = bucket.blob(f'logs_backup/{current_date}/{os.path.basename(backup_file)}')
+        # Read the backup file
+        with open(backup_file, 'rb') as file:
+            content = file.read()
         
-        # Upload the file
-        blob.upload_from_filename(backup_file)
+        # Convert to base64
+        content_base64 = base64.b64encode(content).decode()
         
-        print(f"Successfully uploaded {backup_file} to Firebase Storage")
+        try:
+            # Try to get the file first (to update if exists)
+            existing_file = repo.get_contents(file_path)
+            repo.update_file(
+                file_path,
+                f"Update log backup for {current_date}",
+                content_base64,
+                existing_file.sha
+            )
+        except:
+            # File doesn't exist, create new
+            repo.create_file(
+                file_path,
+                f"Add log backup for {current_date}",
+                content_base64
+            )
+        
+        print(f"Successfully uploaded {backup_file} to GitHub")
         return True
     except Exception as e:
-        print(f"Error uploading to Firebase: {str(e)}")
+        print(f"Error uploading to GitHub: {str(e)}")
         return False
 
 def cleanup(backup_file):
@@ -50,11 +78,6 @@ def cleanup(backup_file):
 def main():
     # Configuration
     log_directory = os.getenv('LOG_DIRECTORY', '/var/log')  # Default log directory
-    bucket_name = os.getenv('FIREBASE_BUCKET_NAME')
-    
-    if not bucket_name:
-        print("Error: FIREBASE_BUCKET_NAME not set in environment variables")
-        return
     
     # Create backup filename with timestamp
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -62,12 +85,12 @@ def main():
     
     # Create backup
     if create_backup(log_directory, backup_name):
-        # Upload to Firebase
-        if upload_to_firebase(backup_name, bucket_name):
+        # Upload to GitHub
+        if upload_to_github(backup_name):
             # Cleanup local backup file
             cleanup(backup_name)
         else:
-            print("Failed to upload backup to Firebase")
+            print("Failed to upload backup to GitHub")
     else:
         print("Failed to create backup")
 

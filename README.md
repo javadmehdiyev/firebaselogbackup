@@ -1,11 +1,11 @@
-# Log Backup Firebase
+# Log Backup GitHub
 
-Bu script, Ubuntu sunucunuzdaki log dosyalarını otomatik olarak yedekleyip Firebase Storage'a yükler.
+Bu script, Ubuntu sunucunuzdaki log dosyalarını otomatik olarak yedekleyip GitHub repository'nize yükler.
 
 ## Özellikler
 
 - Log dosyalarını günlük olarak tar.gz formatında arşivler
-- Arşivi Firebase Storage'a yükler
+- Arşivi GitHub repository'nize yükler
 - Yükleme başarılı olduktan sonra yerel arşiv dosyasını temizler
 - Cron ile otomatik çalışma desteği
 - Hata durumlarında bilgilendirme
@@ -13,8 +13,9 @@ Bu script, Ubuntu sunucunuzdaki log dosyalarını otomatik olarak yedekleyip Fir
 ## Gereksinimler
 
 - Python 3.6 veya üzeri
-- Firebase projesi ve Firebase Admin SDK
-- Firebase Storage bucket'ı
+- GitHub hesabı
+- Private GitHub repository
+- GitHub Personal Access Token
 - Ubuntu Server
 
 ## Kurulum Adımları
@@ -24,21 +25,23 @@ Bu script, Ubuntu sunucunuzdaki log dosyalarını otomatik olarak yedekleyip Fir
    pip install -r requirements.txt
    ```
 
-2. Firebase Console'dan yeni bir proje oluşturun (veya mevcut projenizi kullanın):
-   - https://console.firebase.google.com adresine gidin
-   - Yeni proje oluşturun veya mevcut projenizi seçin
-   - "Project Settings" > "Service accounts" bölümüne gidin
-   - "Generate New Private Key" butonuna tıklayın
-   - İndirilen JSON dosyasını güvenli bir yere kaydedin
+2. GitHub'da yeni bir private repository oluşturun
 
-3. `.env` dosyası oluşturun:
+3. GitHub Personal Access Token oluşturun:
+   - GitHub.com'da profil ayarlarınıza gidin
+   - "Developer settings" > "Personal access tokens" > "Tokens (classic)" bölümüne gidin
+   - "Generate new token" butonuna tıklayın
+   - Token'a "repo" yetkisi verin
+   - Oluşturulan token'ı güvenli bir yere kaydedin
+
+4. `.env` dosyası oluşturun:
    ```bash
-   FIREBASE_CREDENTIALS_PATH=/path/to/your/firebase-credentials.json
-   FIREBASE_BUCKET_NAME=your-project-id.appspot.com
+   GITHUB_TOKEN=your_github_personal_access_token
+   GITHUB_REPO=your_repository_name
    LOG_DIRECTORY=/var/log  # veya başka bir log dizini
    ```
 
-4. Scripti test edin:
+5. Scripti test edin:
    ```bash
    python backup_logs.py
    ```
@@ -57,10 +60,11 @@ Bu script, Ubuntu sunucunuzdaki log dosyalarını otomatik olarak yedekleyip Fir
 
 ## Güvenlik Önerileri
 
-- Firebase credentials dosyasını güvenli bir yerde saklayın ve yetkilendirmesini sınırlayın
+- GitHub Personal Access Token'ınızı güvenli bir yerde saklayın
+- Repository'nin private olduğundan emin olun
 - `.env` dosyasına sadece root kullanıcısının erişimi olduğundan emin olun
-- Düzenli olarak Firebase Storage'daki yedekleri kontrol edin
-- Eski yedekleri temizlemek için bir retention policy oluşturun
+- Düzenli olarak GitHub'daki yedekleri kontrol edin
+- Repository boyutunu kontrol edin ve gerekirse eski yedekleri temizleyin
 
 ## Hata Ayıklama
 
@@ -73,11 +77,11 @@ Script çalışmazsa şu adımları kontrol edin:
 
 2. Gerekli paketlerin yüklü olduğunu kontrol edin:
    ```bash
-   pip list | grep firebase-admin
+   pip list | grep PyGithub
    pip list | grep python-dotenv
    ```
 
-3. `.env` dosyasındaki yolların ve değerlerin doğru olduğunu kontrol edin
+3. `.env` dosyasındaki değerlerin doğru olduğunu kontrol edin
 
 4. Log dosyasını kontrol edin:
    ```bash
@@ -86,7 +90,7 @@ Script çalışmazsa şu adımları kontrol edin:
 
 ## Log Yapısı
 
-Firebase Storage'da loglar şu yapıda saklanır:
+GitHub repository'nizde loglar şu yapıda saklanır:
 ```
 logs_backup/
   └── YYYY-MM-DD/
